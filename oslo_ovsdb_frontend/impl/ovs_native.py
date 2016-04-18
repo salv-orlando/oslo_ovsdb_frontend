@@ -20,14 +20,13 @@ from oslo_utils import excutils
 from ovs.db import idl
 from six.moves import queue as Queue
 
-from neutron._i18n import _
-from neutron.agent.ovsdb import api
-from neutron.agent.ovsdb.native import commands as cmd
-from neutron.agent.ovsdb.native import connection
-from neutron.agent.ovsdb.native import idlutils
+from oslo_ovsdb_frontend._i18n import _
+from oslo_ovsdb_frontend import api
+from oslo_ovsdb_frontend.api import ovs as ovsapi
+from oslo_ovsdb_frontend.impl.native import commands as cmd
+from oslo_ovsdb_frontend.impl.native import connection
+from oslo_ovsdb_frontend.impl.native import idlutils
 
-
-cfg.CONF.import_opt('ovs_vsctl_timeout', 'neutron.agent.common.ovs_lib')
 
 LOG = logging.getLogger(__name__)
 
@@ -107,10 +106,10 @@ class Transaction(api.Transaction):
             return [cmd.result for cmd in self.commands]
 
 
-class OvsdbIdl(api.API):
+class OvsdbIdl(ovsapi.API):
 
     ovsdb_connection = connection.Connection(cfg.CONF.OVS.ovsdb_connection,
-                                             cfg.CONF.ovs_vsctl_timeout,
+                                             cfg.CONF.OVS.ovs_vsctl_timeout,
                                              'Open_vSwitch')
 
     def __init__(self, context):

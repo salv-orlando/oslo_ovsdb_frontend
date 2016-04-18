@@ -13,67 +13,12 @@
 #    under the License.
 
 import abc
-import collections
-import uuid
 
 from oslo_config import cfg
 from oslo_utils import importutils
 import six
 
-from neutron._i18n import _
-
-interface_map = {
-    'vsctl': 'neutron.agent.ovsdb.impl_vsctl.OvsdbVsctl',
-    'native': 'neutron.agent.ovsdb.impl_idl.OvsdbIdl',
-}
-
-OPTS = [
-    cfg.StrOpt('ovsdb_interface',
-               choices=interface_map.keys(),
-               default='vsctl',
-               help=_('The interface for interacting with the OVSDB')),
-    cfg.StrOpt('ovsdb_connection',
-               default='tcp:127.0.0.1:6640',
-               help=_('The connection string for the native OVSDB backend. '
-                      'Requires the native ovsdb_interface to be enabled.'))
-]
-cfg.CONF.register_opts(OPTS, 'OVS')
-
-
-@six.add_metaclass(abc.ABCMeta)
-class Command(object):
-    """An OVSDB command that can be executed in a transaction
-
-    :attr result: The result of executing the command in a transaction
-    """
-
-    @abc.abstractmethod
-    def execute(self, **transaction_options):
-        """Immediately execute an OVSDB command
-
-        This implicitly creates a transaction with the passed options and then
-        executes it, returning the value of the executed transaction
-
-        :param transaction_options: Options to pass to the transaction
-        """
-
-
-@six.add_metaclass(abc.ABCMeta)
-class Transaction(object):
-    @abc.abstractmethod
-    def commit(self):
-        """Commit the transaction to OVSDB"""
-
-    @abc.abstractmethod
-    def add(self, command):
-        """Append an OVSDB operation to the transaction"""
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, tb):
-        if exc_type is None:
-            self.result = self.commit()
+from oslo_ovsdb_frontend import config
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -85,7 +30,8 @@ class API(object):
     def get(context, iface_name=None):
         """Return the configured OVSDB API implementation"""
         iface = importutils.import_class(
-            interface_map[iface_name or cfg.CONF.OVS.ovsdb_interface])
+            config.ovsdb_interface_map[iface_name or
+                                       cfg.CONF.OVS.ovsdb_interface])
         return iface(context)
 
     @abc.abstractmethod
@@ -354,25 +300,3 @@ class API(object):
         :type bridge:  string
         :returns:      :class:`Command` with list of interfaces names result
         """
-
-
-def val_to_py(val):
-    """Convert a json ovsdb return value to native python object"""
-    if isinstance(val, collections.Sequence) and len(val) == 2:
-        if val[0] == "uuid":
-            return uuid.UUID(val[1])
-        elif val[0] == "set":
-            return [val_to_py(x) for x in val[1]]
-        elif val[0] == "map":
-            return {val_to_py(x): val_to_py(y) for x, y in val[1]}
-    return val
-
-
-def py_to_val(pyval):
-    """Convert python value to ovs-vsctl value argument"""
-    if isinstance(pyval, bool):
-        return 'true' if pyval is True else 'false'
-    elif pyval == '':
-        return '""'
-    else:
-        return pyval

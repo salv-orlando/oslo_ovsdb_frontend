@@ -12,17 +12,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import mock
 import time
 import uuid
 
+import eventlet
+eventlet.monkey_patch()
+import mock
+from oslotest import base
 from ovs.db import idl as ovs_idl
 
-from networking_ovn.common import constants as ovn_const
-from networking_ovn.ovsdb import ovsdb_monitor
-from networking_ovn.tests.unit import test_ovn_plugin
-
-OVN_PROFILE = ovn_const.OVN_PORT_BINDING_PROFILE
+from oslo_ovsdb_frontend.impl import ovsdb_monitor
 
 
 OVN_NB_SCHEMA = {
@@ -51,18 +50,19 @@ OVN_NB_SCHEMA = {
 }
 
 
-class TestOvnIdlNotifyHandler(test_ovn_plugin.OVNPluginTestCase):
+class TestOvnIdlNotifyHandler(base.BaseTestCase):
 
     def setUp(self):
         super(TestOvnIdlNotifyHandler, self).setUp()
         helper = ovs_idl.SchemaHelper(schema_json=OVN_NB_SCHEMA)
         helper.register_all()
+        self.plugin = mock.Mock()
+        self.plugin.set_port_status_up = mock.Mock()
+        self.plugin.set_port_status_down = mock.Mock()
         self.idl = ovsdb_monitor.OvnIdl(self.plugin, "remote", helper)
         self.idl.lock_name = self.idl.event_lock_name
         self.idl.has_lock = True
         self.lp_table = self.idl.tables.get('Logical_Port')
-        self.plugin.set_port_status_up = mock.Mock()
-        self.plugin.set_port_status_down = mock.Mock()
 
     def _test_lport_helper(self, event, new_row_json, old_row_json=None,
                            table=None):

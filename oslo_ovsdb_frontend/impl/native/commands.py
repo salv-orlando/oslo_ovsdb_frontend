@@ -17,9 +17,9 @@ import collections
 from oslo_log import log as logging
 from oslo_utils import excutils
 
-from neutron._i18n import _, _LE
-from neutron.agent.ovsdb import api
-from neutron.agent.ovsdb.native import idlutils
+from oslo_ovsdb_frontend._i18n import _, _LE
+from oslo_ovsdb_frontend import api
+from oslo_ovsdb_frontend.impl.native import idlutils
 
 LOG = logging.getLogger(__name__)
 

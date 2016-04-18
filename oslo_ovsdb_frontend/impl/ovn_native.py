@@ -12,40 +12,38 @@
 
 import six
 
-from neutron.agent.ovsdb import impl_idl
-from neutron.agent.ovsdb.native import connection
-from neutron.agent.ovsdb.native import idlutils
+from oslo_ovsdb_frontend._i18n import _
+from oslo_ovsdb_frontend.api import ovn as ovn_api
+from oslo_ovsdb_frontend import config as cfg
+from oslo_ovsdb_frontend.impl.native import connection
+from oslo_ovsdb_frontend.impl.native import idlutils
+from oslo_ovsdb_frontend.impl import ovn_commands as cmd
+from oslo_ovsdb_frontend.impl import ovs_native
+from oslo_ovsdb_frontend.impl import ovsdb_monitor
+from oslo_ovsdb_frontend.impl import utils
 
-from networking_ovn._i18n import _
-from networking_ovn.common import config as cfg
-from networking_ovn.common import constants as ovn_const
-from networking_ovn.common import utils
-from networking_ovn.ovsdb import commands as cmd
-from networking_ovn.ovsdb import ovn_api
-from networking_ovn.ovsdb import ovsdb_monitor
-
-
-def get_connection(trigger=None):
-    # The trigger is the start() method of the NeutronWorker class
-    if trigger and trigger.im_class == ovsdb_monitor.OvnWorker:
-        cls = ovsdb_monitor.OvnConnection
-    else:
-        cls = connection.Connection
-    return cls(cfg.get_ovn_ovsdb_connection(),
-               cfg.get_ovn_ovsdb_timeout(), 'OVN_Northbound')
+OVN_NETWORK_NAME_EXT_ID_KEY = 'neutron:network_name'
+OVN_PORT_NAME_EXT_ID_KEY = 'neutron:port_name'
 
 
 class OvsdbOvnIdl(ovn_api.API):
 
     ovsdb_connection = None
 
-    def __init__(self, plugin, trigger=None):
+    def __init__(self, event_callbacks=None):
         super(OvsdbOvnIdl, self).__init__()
+        if event_callbacks:
+            conn_cls = ovsdb_monitor.OvnConnection
+        else:
+            conn_cls = connection.Connection
         if OvsdbOvnIdl.ovsdb_connection is None:
-            OvsdbOvnIdl.ovsdb_connection = get_connection(trigger)
+            OvsdbOvnIdl.ovsdb_connection = conn_cls(
+                cfg.get_ovn_ovsdb_connection(),
+                cfg.get_ovs_ovsdb_timeout(),
+                'OVN_Northbound')
         if isinstance(OvsdbOvnIdl.ovsdb_connection,
                       ovsdb_monitor.OvnConnection):
-            OvsdbOvnIdl.ovsdb_connection.start(plugin)
+            OvsdbOvnIdl.ovsdb_connection.start(event_callbacks)
         else:
             OvsdbOvnIdl.ovsdb_connection.start()
         self.idl = OvsdbOvnIdl.ovsdb_connection.idl
@@ -56,10 +54,10 @@ class OvsdbOvnIdl(ovn_api.API):
         return self.idl.tables
 
     def transaction(self, check_error=False, log_errors=True, **kwargs):
-        return impl_idl.Transaction(self,
-                                    OvsdbOvnIdl.ovsdb_connection,
-                                    self.ovsdb_timeout,
-                                    check_error, log_errors)
+        return ovs_native.Transaction(self,
+                                      OvsdbOvnIdl.ovsdb_connection,
+                                      self.ovsdb_timeout,
+                                      check_error, log_errors)
 
     def create_lswitch(self, lswitch_name, may_exist=True, **columns):
         return cmd.AddLSwitchCommand(self, lswitch_name,
@@ -113,15 +111,19 @@ class OvsdbOvnIdl(ovn_api.API):
             result[row.name] = row.external_ids
         return result
 
-    def get_all_logical_switches_with_ports(self):
+    def get_all_logical_switches_with_ports(self, lswitch_key, lport_key):
+        """Retrieve logical ports from a given logical switch.
+
+        :param lswitch_key: Tag in external ids for lswitches to look for
+        :param lport_key: Tag in external ids for logical ports to look for
+        """
         result = []
         for lswitch in self._tables['Logical_Switch'].rows.values():
-            if ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY not in (
-                lswitch.external_ids):
+            if lswitch_key not in lswitch.external_ids:
                 continue
             ports = []
             for lport in getattr(lswitch, 'ports', []):
-                if ovn_const.OVN_PORT_NAME_EXT_ID_KEY in lport.external_ids:
+                if lport_key in lport.external_ids:
                     ports.append(lport.name)
             result.append({'name': lswitch.name,
                            'ports': ports})

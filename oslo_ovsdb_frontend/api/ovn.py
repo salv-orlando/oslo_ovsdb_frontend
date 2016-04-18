@@ -11,11 +11,34 @@
 #    under the License.
 
 import abc
+
+from oslo_config import cfg
+from oslo_utils import importutils
 import six
+
+from oslo_ovsdb_frontend import config
 
 
 @six.add_metaclass(abc.ABCMeta)
 class API(object):
+
+    @abc.abstractmethod
+    def __init__(self, notify_target, connection=None):
+        """Initializes the OVSDB API wrapper for OVN NB Database.
+
+           :param connection: An instance of OvnConnection. If not specified
+                a new instance will be created
+           :notify_target: an object that will receive notifications (only
+                for monitor connections)
+        """
+
+    @staticmethod
+    def get(iface_name=None, notify_target=None, connection=None):
+        """Return the configured OVNDB API implementation"""
+        iface = importutils.import_class(
+            config.ovndb_interface_map[iface_name or
+                                       cfg.CONF.OVS.ovndb_interface])
+        return iface(notify_target, connection)
 
     @abc.abstractmethod
     def transaction(self, check_error=False, log_errors=True, **kwargs):

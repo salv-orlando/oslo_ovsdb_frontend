@@ -15,20 +15,18 @@
 import atexit
 from eventlet import greenthread
 import Queue
-import retrying
 import threading
 
 from oslo_log import log
 from ovs.db import idl
 from ovs import poller
+import retrying
 
-from networking_ovn._i18n import _LE
-from networking_ovn.ovsdb import row_event
-from neutron.agent.ovsdb.native import connection
-from neutron.agent.ovsdb.native import helpers
-from neutron.agent.ovsdb.native import idlutils
-from neutron.common import config
-from neutron import worker
+from oslo_ovsdb_frontend._i18n import _LE
+from oslo_ovsdb_frontend.impl.native import connection
+from oslo_ovsdb_frontend.impl.native import helpers
+from oslo_ovsdb_frontend.impl.native import idlutils
+from oslo_ovsdb_frontend.impl.native import row_event
 
 LOG = log.getLogger(__name__)
 
@@ -203,19 +201,16 @@ class OvnIdl(idl.Idl):
         # idl.Idl will call notify function for the "update" rpc method it
         # receives from the ovsdb-server.
         # This event lock is required for the following reasons
-        #  - If there are multiple neutron servers running, OvnWorkers of
-        #    these neutron servers would recieve the notify events from
-        #    idl.Idl
+        #  - If there are multiple servers running, workers of these servers
+        #    would recieve the notify events from idl.Idl
         #
-        #  - we do not want all the neutron servers to handle these events
+        #  - we do not want all the servers to handle these events
         #
-        #  - only the neutron server which has the lock will handle the
-        #    notify events.
+        #  - only the server which has the lock will handle the notify events.
         #
-        #  - In case the neutron server which owns this lock goes down,
-        #    ovsdb server would assign the lock to one of the other neutron
-        #    servers.
-        self.event_lock_name = "neutron_ovn_event_lock"
+        #  - In case the server which owns this lock goes down, ovsdb server
+        #    will assign the lock to one of the other servers.
+        self.event_lock_name = "ovn_event_lock"
 
     def notify(self, event, row, updates=None):
         # Do not handle the notification if the event lock is requested,
@@ -278,23 +273,3 @@ class OvnConnection(connection.Connection):
             self.thread = threading.Thread(target=self.run)
             self.thread.setDaemon(True)
             self.thread.start()
-
-
-class OvnWorker(worker.NeutronWorker):
-    def start(self):
-        super(OvnWorker, self).start()
-        # NOTE(twilson) The super class will trigger the post_fork_initialize
-        # in the plugin, which starts the connection/IDL notify loop which
-        # keeps the process from exiting
-
-    def stop(self):
-        """Stop service."""
-        # TODO(numans)
-
-    def wait(self):
-        """Wait for service to complete."""
-        # TODO(numans)
-
-    @staticmethod
-    def reset():
-        config.reset_service()

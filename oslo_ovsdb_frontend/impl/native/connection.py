@@ -21,8 +21,8 @@ from ovs import poller
 import retrying
 from six.moves import queue as Queue
 
-from neutron.agent.ovsdb.native import helpers
-from neutron.agent.ovsdb.native import idlutils
+from oslo_ovsdb_frontend.impl.native import helpers
+from oslo_ovsdb_frontend.impl.native import idlutils
 
 
 class TransactionQueue(Queue.Queue, object):

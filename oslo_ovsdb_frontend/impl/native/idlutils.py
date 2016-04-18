@@ -22,8 +22,8 @@ from ovs import jsonrpc
 from ovs import poller
 from ovs import stream
 
-from neutron._i18n import _
-from neutron.common import exceptions
+from oslo_ovsdb_frontend._i18n import _
+from oslo_ovsdb_frontend import exceptions
 
 
 RowLookup = collections.namedtuple('RowLookup',
@@ -45,10 +45,6 @@ _LOOKUP_TABLE = {
 _NO_DEFAULT = object()
 
 
-class RowNotFound(exceptions.NeutronException):
-    message = _("Cannot find %(table)s with %(col)s=%(match)s")
-
-
 def row_by_value(idl_, table, column, match, default=_NO_DEFAULT):
     """Lookup an IDL row in a table by column/value"""
     tab = idl_.tables[table]
@@ -57,7 +53,7 @@ def row_by_value(idl_, table, column, match, default=_NO_DEFAULT):
             return r
     if default is not _NO_DEFAULT:
         return default
-    raise RowNotFound(table=table, col=column, match=match)
+    raise exceptions.RowNotFound(table=table, col=column, match=match)
 
 
 def row_by_record(idl_, table, record):
@@ -71,7 +67,7 @@ def row_by_record(idl_, table, record):
         # Not a UUID string, continue lookup by other means
         pass
     except KeyError:
-        raise RowNotFound(table=table, col='uuid', match=record)
+        raise exceptions.RowNotFound(table=table, col='uuid', match=record)
 
     rl = _LOOKUP_TABLE.get(table, RowLookup(table, get_index_column(t), None))
     # no table means uuid only, no column is just SSL which we don't need
@@ -83,7 +79,8 @@ def row_by_record(idl_, table, record):
     if rl.uuid_column:
         rows = getattr(row, rl.uuid_column)
         if len(rows) != 1:
-            raise RowNotFound(table=table, col=_('record'), match=record)
+            raise exceptions.RowNotFound(
+                table=table, col=_('record'), match=record)
         row = rows[0]
     return row
 

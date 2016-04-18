@@ -12,11 +12,13 @@
 
 import six
 
-from neutron.agent.ovsdb.native.commands import BaseCommand
-from neutron.agent.ovsdb.native import idlutils
 
-from networking_ovn._i18n import _
-from networking_ovn.common import utils
+from oslo_ovsdb_frontend._i18n import _
+from oslo_ovsdb_frontend.impl.native import commands
+from oslo_ovsdb_frontend.impl.native import idlutils
+from oslo_ovsdb_frontend.impl import utils
+
+BaseCommand = commands.BaseCommand
 
 
 class AddLSwitchCommand(BaseCommand):

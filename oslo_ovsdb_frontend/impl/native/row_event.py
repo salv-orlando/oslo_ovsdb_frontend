@@ -18,7 +18,7 @@ from oslo_log import log as logging
 from ovs.db import idl
 import six
 
-from neutron.agent.ovsdb.native import idlutils
+from oslo_ovsdb_frontend.impl.native import idlutils
 
 LOG = logging.getLogger(__name__)
 
