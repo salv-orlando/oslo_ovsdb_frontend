@@ -1,0 +1,7 @@
+[run]
+branch = True
+source = ovsdb_frontend
+omit = ovsdb_frontend/tests/*,ovsdb_frontend/openstack/*
+
+[report]
+ignore_errors = True
